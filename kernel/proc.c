@@ -90,7 +90,7 @@ ps(int pid)
         state = states[p->state];
       else
         state = "???";
-      printf("%-10s %-10d %-10s %-10d\n", p->name, p->pid, state, p->nice);
+      printf("%s %d %s %d\n", p->name, p->pid, state, p->nice);
       release(&p->lock);
     }
   }
@@ -98,14 +98,14 @@ ps(int pid)
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->pid == pid && p->state != UNUSED) {
-        printf("\n%-10s %-10s %-10s %-10s\n", "NAME", "PID", "STATE", "NICE");
+        printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "NICE");
 
         if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
           state = states[p->state];
         else
           state = "???";
 
-        printf("%-10s %-10d %-10s %-10d\n", p->name, p->pid, state, p->nice);
+        printf("%s %d %s %d\n", p->name, p->pid, state, p->nice);
 
         release(&p->lock);
         return;
