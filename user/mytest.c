@@ -7,61 +7,62 @@ main(int argc, char *argv[])
   int pid;
   int nice_val;
 
-  printf("\n--- waitpid 기능 테스트 ---\n");
+  printf("\n=== waitpid function test ===\n");
   int child_pid = fork();
 
   if (child_pid < 0) {
-    printf("fork() 실패!\n");
+    printf("fork() failed!\n");
     exit(1);
   } else if (child_pid == 0) {
-    // 자식 프로세스
-    printf("자식 프로세스 (%d) 시작\n", getpid());
-    printf("자식 프로세스 (%d) 종료\n", getpid());
+    // child process
+    printf("child process (%d) started\n", getpid());
+    sleep(1);
+    printf("child process (%d) finished\n", getpid());
     exit(0);
   } else {
-    // 부모 프로세스
-    printf("부모 프로세스 (%d) 시작. 자식 (%d) 기다림\n", getpid(), child_pid);
+    // parent process
+    printf("parent process (%d) started. waiting for child (%d)\n", getpid(), child_pid);
     if (waitpid(child_pid) == 0) {
-      printf("자식 프로세스 (%d) 종료 확인\n", child_pid);
+      printf("child process (%d) finished successfully\n", child_pid);
     } else {
-      printf("waitpid 오류 발생\n");
+      printf("waitpid error occurred\n");
     }
     
-    // 존재하지 않는 pid에 대한 waitpid 테스트
-    printf("\n--- 존재하지 않는 PID에 대한 waitpid 테스트 ---\n");
+    // test waitpid with non-existent pid
+    printf("\n=== waitpid test with non-existent PID ===\n");
     if (waitpid(9999) == -1) {
-        printf("성공: 존재하지 않는 PID에 대해 -1 반환\n");
+        printf("SUCCESS: waitpid returned -1 for non-existent PID\n");
     } else {
-        printf("실패: 존재하지 않는 PID에 대해 -1을 반환하지 않음\n");
+        printf("FAIL: waitpid did not return -1 for non-existent PID\n");
     }
   }
 
-
-  printf("\n--- ps, getnice, setnice, meminfo 기능 테스트 ---\n");
+  printf("\n=== ps, getnice, setnice, meminfo function test ===\n");
   
-  // 1. ps 기능 테스트
-  printf("1. ps(0) - 모든 프로세스 정보 출력\n");
+  // 1. ps function test
+  printf("1. ps(0) - print all process information\n");
   ps(0);
 
-  // 2. getnice & setnice 기능 테스트
+  // 2. getnice & setnice function test
   pid = getpid();
-  printf("2. getnice & setnice 테스트 (내 PID: %d)\n", pid);
+  printf("\n2. getnice & setnice test (my PID: %d)\n", pid);
   
   nice_val = getnice(pid);
-  printf("    - 초기 nice 값: %d\n", nice_val);
+  printf("    - initial nice value: %d\n", nice_val);
   
   if (setnice(pid, 10) == 0) {
-    printf("    - nice 값을 10으로 변경 성공\n");
+    printf("    - successfully changed nice value to 10\n");
   } else {
-    printf("    - nice 값 변경 실패\n");
+    printf("    - failed to change nice value\n");
   }
 
   nice_val = getnice(pid);
-  printf("    - 변경 후 nice 값: %d\n", nice_val);
+  printf("    - nice value after change: %d\n", nice_val);
 
-  // 3. meminfo 기능 테스트
-  printf("\n3. meminfo - 사용 가능한 메모리 출력\n");
+  // 3. meminfo function test
+  printf("\n3. meminfo - print available memory\n");
   meminfo();
 
+  printf("\n=== All tests completed ===\n");
   exit(0);
 }
