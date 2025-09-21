@@ -21,8 +21,10 @@ main(int argc, char *argv[])
     exit(0);
   } else {
     // parent process
-    printf("parent process (%d) started", getpid());
-    printf("waiting for child (%d)\n", child_pid);
+    printf("parent process started\n");
+    printf("PID: %d\n", getpid());
+    printf("waiting for child\n");
+    printf("Child PID: %d\n", child_pid);
     if (waitpid(child_pid) == 0) {
       printf("child process (%d) finished successfully\n", child_pid);
     } else {
