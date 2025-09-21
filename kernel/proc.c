@@ -29,6 +29,137 @@ struct spinlock wait_lock;
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
+int
+getnice(int pid)
+{
+ struct proc *p;
+ int nice = -1;
+
+ for(p=proc; p<&proc[NPROC]; p++){
+  acquire(&p->lock);
+  if(p->pid == pid){
+   nice = p->nice;
+   release(&p->lock);
+   return nice;
+  }
+  release(&p->lock);
+ }
+  return nice;
+}
+
+int
+setnice(int pid, int n)
+{
+ struct proc *p;
+ 
+ for(p=proc; p<&proc[NPROC]; p++){
+  acquire(&p->lock);
+  if(p->pid == pid && n>=0 && n<=39){
+   p->nice = n;
+   release(&p->lock);
+   return 0;
+  }
+  release(&p->lock);
+ }
+  return -1;
+}
+
+void
+ps(int pid)
+{
+  static char *states[] = {
+    [UNUSED]    "unused",
+    [USED]      "used",
+    [SLEEPING]  "sleep ",
+    [RUNNABLE]  "runble",
+    [RUNNING]   "run   ",
+    [ZOMBIE]    "zombie"
+  };
+  struct proc *p;
+  char *state;
+
+  if (pid == 0) {
+    printf("\n%-10s %-10s %-10s %-10s\n", "NAME", "PID", "STATE", "NICE");
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->state == UNUSED) {
+        release(&p->lock);
+        continue;
+      }
+      if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+        state = states[p->state];
+      else
+        state = "???";
+      printf("%-10s %-10d %-10s %-10d\n", p->name, p->pid, state, p->nice);
+      release(&p->lock);
+    }
+  }
+  else {
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->pid == pid && p->state != UNUSED) {
+        printf("\n%-10s %-10s %-10s %-10s\n", "NAME", "PID", "STATE", "NICE");
+
+        if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+          state = states[p->state];
+        else
+          state = "???";
+
+        printf("%-10s %-10d %-10s %-10d\n", p->name, p->pid, state, p->nice);
+
+        release(&p->lock);
+        return;
+      }
+      release(&p->lock);
+    }
+  }
+} 
+
+int
+waitpid(int pid)
+{
+  struct proc *pp;
+  struct proc *p = myproc();
+  
+  // wait_lock은 kwait와 동일하게 여기서 획득하고 루프 내에서 해제하지 않습니다.
+  acquire(&wait_lock); 
+
+  for(;;){
+    int found_child = 0;
+    
+    // 프로세스 테이블을 순회하며 모든 프로세스를 검사합니다.
+    for(pp = proc; pp < &proc[NPROC]; pp++){
+      acquire(&pp->lock);
+
+      // 요청한 pid와 부모가 현재 프로세스인지 확인
+      if(pp->pid == pid && pp->parent == p){
+        found_child = 1; // 자식을 찾음
+
+        if(pp->state == ZOMBIE){
+          freeproc(pp);
+          release(&pp->lock);
+          release(&wait_lock);
+          return 0; // 성공적으로 종료
+        }
+
+        release(&pp->lock);
+        break; // 특정 자식을 찾았으므로 더이상 순회하지 않고 루프를 빠져나갑니다.
+      }
+      release(&pp->lock); // 조건을 만족하지 않으면 락을 해제하고 다음 프로세스로
+    }
+
+    // 자식을 아예 찾지 못했거나 부모가 killed 상태라면 에러 반환
+    if(!found_child || killed(p)){
+        release(&wait_lock);
+        return -1;
+    }
+    
+    // 특정 자식 프로세스를 찾았지만 아직 종료되지 않았다면 sleep
+    sleep(p, &wait_lock);
+  }
+}
+
+
 void
 proc_mapstacks(pagetable_t kpgtbl)
 {
@@ -124,6 +255,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->nice = 20;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){

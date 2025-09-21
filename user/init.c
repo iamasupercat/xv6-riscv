@@ -36,6 +36,10 @@ main(void)
       exit(1);
     }
 
+    printf("Student ID: 2023315667\n");
+    printf("Name: Soojin Choi\n");
+    printf("==========Project0==========\n");
+
     for(;;){
       // this call to wait() returns if the shell exits,
       // or if a parentless process exits.
