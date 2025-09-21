@@ -21,7 +21,8 @@ main(int argc, char *argv[])
     exit(0);
   } else {
     // parent process
-    printf("parent process (%d) started. waiting for child (%d)\n", getpid(), child_pid);
+    printf("parent process (%d) started", getpid());
+    printf("waiting for child (%d)\n", child_pid);
     if (waitpid(child_pid) == 0) {
       printf("child process (%d) finished successfully\n", child_pid);
     } else {
@@ -61,7 +62,7 @@ main(int argc, char *argv[])
 
   // 3. meminfo function test
   printf("\n3. meminfo - print available memory\n");
-  meminfo();
+  printf("%d\n", meminfo());
 
   printf("\n=== All tests completed ===\n");
   exit(0);
