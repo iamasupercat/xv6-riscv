@@ -79,7 +79,7 @@ ps(int pid)
   char *state;
 
   if (pid == 0) {
-    printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "NICE");
+    printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "PRIORITY");
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->state == UNUSED) {
@@ -98,7 +98,7 @@ ps(int pid)
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->pid == pid && p->state != UNUSED) {
-        printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "NICE");
+        printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "PRIORITY");
 
         if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
           state = states[p->state];
