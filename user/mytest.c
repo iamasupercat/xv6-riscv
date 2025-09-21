@@ -16,7 +16,7 @@ main(int argc, char *argv[])
   } else if (child_pid == 0) {
     // child process
     printf("child process (%d) started\n", getpid());
-    sleep(1);
+
     printf("child process (%d) finished\n", getpid());
     exit(0);
   } else {
