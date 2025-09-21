@@ -79,7 +79,7 @@ ps(int pid)
   char *state;
 
   if (pid == 0) {
-    printf("\n%-10s %-10s %-10s %-10s\n", "NAME", "PID", "STATE", "NICE");
+    printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "NICE");
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->state == UNUSED) {
