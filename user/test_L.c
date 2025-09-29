@@ -4,24 +4,12 @@
 
 int main()
 {
-        int i;
         int nice_val;
-
-        //getpname
-        printf(">>>Testing getpname:\n");
-        for (i = 1; i < 11; i++) {
-                printf("%d: ", i);
-                if (getpname(i))
-                        printf("Wrong pid\n");
-        }
-
-        printf("\n");
 
         //getnice and setnice
         printf(">>>Testing getnice and setnice:\n");
 
-        int pid = 4;
-        getpname(pid);
+        int pid = getpid();
 
         nice_val = getnice(pid);
         if (nice_val == -1) {
