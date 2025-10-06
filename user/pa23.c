@@ -40,7 +40,7 @@ main(void)
       while (1) {
         for (int j = 0; j < 50000000; j++)
           x += j;
-        //sleep(1);  // ps 타이밍 조절용
+        sleep(1);  // ps 타이밍 조절용
       }
       exit(0); // 도달 X
     } else {
@@ -58,7 +58,7 @@ main(void)
   for (int iter = 0; iter < 10; iter++) {
     printf("\n[TEST3] ====== ps 호출 (iteration %d) ======\n", iter);
     ps(0);  // 전체 프로세스 상태 출력
-    //sleep(100); // 100 ticks 대기
+    sleep(100); // 100 ticks 대기
   }
 
   // 4) 자식 프로세스 종료

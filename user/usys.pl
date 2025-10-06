@@ -47,3 +47,4 @@ entry("setnice");
 entry("ps");
 entry("meminfo");
 entry("waitpid");
+entry("sleep");

@@ -29,6 +29,7 @@ int setnice(int,int);
 void ps(int); 
 int meminfo(void);
 int waitpid(int);
+int sleep(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

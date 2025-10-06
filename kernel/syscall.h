@@ -25,3 +25,4 @@
 #define SYS_ps 24
 #define SYS_meminfo 25
 #define SYS_waitpid 26
+#define SYS_sleep 27

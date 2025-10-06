@@ -54,7 +54,7 @@ main(void)
   for(int it = 0; it < 10; it++){
     printf("\n[TEST2] ====== ps 호출 (iteration %d) ======\n", it);
     ps(0); // 전체 프로세스 출력
-    //sleep(50); // 50틱 기다림
+    sleep(50); // 50틱 기다림
   }
 
   // 종료 처리

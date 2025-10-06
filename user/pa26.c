@@ -38,7 +38,7 @@ main(void)
       // ps 호출: 자신의 상태 확인
       printf("\n[Child] ====== ps 호출 (iteration %d) ======\n", i);
       ps(0);  // 전체 프로세스 상태 출력
-      //sleep(1); // 약간 쉬며 tick 증가 유도
+      sleep(1); // 약간 쉬며 tick 증가 유도
     }
 
     printf("[Child] 테스트 종료\n");
