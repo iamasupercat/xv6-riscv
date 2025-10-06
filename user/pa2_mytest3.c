@@ -58,7 +58,7 @@ main(void)
   for (int iter = 0; iter < 10; iter++) {
     printf("\n[TEST3] ====== ps 호출 (iteration %d) ======\n", iter);
     ps(0);  // 전체 프로세스 상태 출력
-    sleep(100); // 100 ticks 대기
+    //sleep(100); // 100 ticks 대기
   }
 
   // 4) 자식 프로세스 종료

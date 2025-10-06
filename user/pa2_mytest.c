@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
     // 자식 프로세스들이 CPU를 점유하고 경쟁할 시간을 줍니다.
     // 100 ticks = 약 10초
     printf("\nParent waiting for 100 ticks (about 10 seconds)...\n");
-    sleep(100);
 
     // ps 시스템 콜을 호출하여 스케줄러 상태를 확인합니다.
     printf("\n--- Running ps to check scheduler status ---\n");

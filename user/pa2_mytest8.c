@@ -40,7 +40,7 @@ int main(void) {
   }
 
   // 부모: ps 호출
-  sleep(100);
+  //sleep(100);
   printf("\n[Parent] ====== ps 호출 (before setnice) ======\n");
   ps(0);
 
@@ -49,7 +49,7 @@ int main(void) {
   setnice(pid2, 5);
 
   for (int i = 0; i < 5; i++) {
-    sleep(100);
+    //sleep(100);
     printf("\n[Parent] ====== ps 호출 (iteration %d) ======\n", i);
     ps(0);
   }

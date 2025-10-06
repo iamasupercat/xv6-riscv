@@ -47,7 +47,7 @@ int main(void) {
       while (1) {
         for (int j = 0; j < 10000000; j++)
           x += j;
-        sleep(1); // 짧은 대기
+        //sleep(1); // 짧은 대기
       }
       exit(0);
     } else {
@@ -64,7 +64,7 @@ int main(void) {
   for (int k = 0; k < 12; k++) {
     printf("\n[Parent] ====== ps 호출 (iteration %d) ======\n", k);
     ps(0);
-    sleep(100);  // 100 tick 동안 대기
+    //sleep(100);  // 100 tick 동안 대기
   }
 
   // 3. 종료
