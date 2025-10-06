@@ -6,6 +6,75 @@
 #include "proc.h"
 #include "defs.h"
 
+extern uint ticks;
+extern struct spinlock tickslock;
+
+// 프로세스 배열 전체를 보호하기 위한 새로운 spinlock
+struct spinlock proc_lock;
+
+static const int nice_to_weight[40] = {
+  88761, 71755, 56483, 46273, 36291, // 0-4
+  29154, 23254, 18705, 14949, 11916, // 5-9
+  9548, 7620, 6100, 4904, 3906,      // 10-14
+  3121, 2501, 1991, 1586, 1277,      // 15-19
+  1024, 820, 655, 526, 423,          // 20-24
+  335, 272, 215, 172, 137,          // 25-29
+  110, 87, 70, 56, 45,               // 30-34
+  36, 29, 23, 18, 15                // 35-39
+};
+
+static uint min_vruntime = 0;
+static uint total_runqueue_weight = 0;
+static uint v_sum_weighted_diff = 0;
+
+static void update_scheduler_globals(void);
+static int check_eligibility(struct proc *p);
+
+// eligibility 체크에 필요한 3개의 전역 변수를 계산/업데이트하는 함수
+static void
+update_scheduler_globals(void)
+{
+  struct proc *p;
+
+  // 1. 변수 초기화
+  min_vruntime = (uint)-1;
+  total_runqueue_weight = 0;
+  v_sum_weighted_diff = 0;
+
+  // 2. 실행 가능한(RUNNABLE) 프로세스들을 순회하며 min_vruntime과 total_weight 계산
+  for(p = proc; p < & proc[NPROC]; p++){
+    if(p->state == RUNNABLE) {
+      if (p->vruntime < min_vruntime)
+        min_vruntime = p->vruntime;
+      total_runqueue_weight += p->weight;
+    }
+  }
+
+  // min_vruntime을 찾지 못했다면 (RUNNABLE 프로세스가 없다면) 종료
+  if(min_vruntime == (uint)-1)
+    return;
+
+  // 3. 다시 순회하며 v_sum_weighted_diff 계산
+  for(p = proc; p < & proc[NPROC]; p++){
+    if(p->state == RUNNABLE) {
+      v_sum_weighted_diff += (p->vruntime - min_vruntime) * p->weight;
+    }
+  }
+}
+
+static int
+check_eligibility(struct proc *p)
+{
+  // RUNNABLE 프로세스가 없거나, total_weight가 0이면 체크 불가
+  if(total_runqueue_weight == 0)
+    return 0;
+
+  // 공식: Σ((vi - v0) * wi) >= (vi - v0) * Σwi
+  uint lhs = v_sum_weighted_diff;
+  uint rhs = (p->vruntime - min_vruntime) * total_runqueue_weight;
+
+  return lhs >= rhs;
+}
 
 struct cpu cpus[NCPU];
 
@@ -80,7 +149,8 @@ ps(int pid)
   char *state;
 
   if (pid == 0) {
-    printf("\n%s %s %s %s\n", "NAME", "PID", "STATE", "PRIORITY");
+    printf("\nNAME\tPID\tSTATE\tPRIO\tWEIGHT\tR/W\tRUNTIME\tVRUNTIME  VDEADLINE ELIGIBLE\n");
+    printf("------------------------------------------------------------------------------------------\n");
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->state == UNUSED) {
@@ -91,9 +161,25 @@ ps(int pid)
         state = states[p->state];
       else
         state = "???";
-      printf("%s %d %s %d\n", p->name, p->pid, state, p->nice);
+      printf("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t  %d\t    %s\n",
+          p->name,
+          p->pid,
+          state,
+          p->nice,
+          p->weight,
+          (p->weight > 0 ? p->runtime / p->weight : 0), // 0으로 나누는 것 방지
+          p->runtime,
+          p->vruntime,
+          p->vdeadline,
+          (p->is_eligible ? "true" : "false"));
+
       release(&p->lock);
     }
+    uint total_ticks;
+    acquire(&tickslock);
+    total_ticks = ticks;
+    release(&tickslock);
+    printf("\nTotal Ticks (mtick): %d\n", total_ticks);
   }
   else {
     for(p = proc; p < &proc[NPROC]; p++){
@@ -251,7 +337,13 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->nice = 20;
+
+  p->nice = NICE_DEFAULT;
+  p->weight = nice_to_weight[NICE_DEFAULT]; // init을 위한 초기화
+  p->vruntime = 0; // init을 위한 초기화
+  p->vdeadline = 0;
+  p->is_eligible = 0;
+  p->timeslice = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -392,6 +484,15 @@ kfork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
+
+  np->parent = p;
+  *np->trapframe = *p->trapframe;
+
+  np->nice = p->nice;
+  np->weight = p->weight;
+  np->vruntime = p->vruntime;
+  np->vdeadline = 0;
+
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
@@ -554,36 +655,43 @@ scheduler(void)
 
   c->proc = 0;
   for(;;){
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting. Then turn them back off
-    // to avoid a possible race between an interrupt
-    // and wfi.
-    intr_on();
-    intr_off();
+    sti(); // Enable interrupts
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    acquire(&proc_lock);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+    // 전역 변수들 (min_vruntime 등)을 최신 상태로 업데이트
+    update_scheduler_globals();
+
+    struct proc *earliest_proc = 0;
+    uint min_deadline = (uint)-1; // Unsigned int의 최대값으로 초기화
+
+    for(p = proc; p < & proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      p->is_eligible = check_eligibility(p);
+
+      if(p->is_eligible){
+        if(p->vdeadline < min_deadline){
+          min_deadline = p->vdeadline;
+          earliest_proc = p;
+        }
       }
-      release(&p->lock);
     }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      asm volatile("wfi");
+
+    if(earliest_proc){
+      p = earliest_proc;
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      p->timeslice = SCHED_BASE_SLICE;
+
+      swtch(&(c->context), &(p->context));
+      switchkvm();
+      c->proc = 0;
     }
+    release(&proc_lock);
   }
 }
 
@@ -701,13 +809,17 @@ wakeup(void *chan)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){
-      acquire(&p->lock);
-      if(p->state == SLEEPING && p->chan == chan) {
-        p->state = RUNNABLE;
-      }
-      release(&p->lock);
+    acquire(&p->lock);
+
+    if(p->state == SLEEPING && p->chan == chan) {
+      p->is_eligible = 0; 
+      p->timeslice = 0; 
+      p->vdeadline = p->vruntime + (SCHED_BASE_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
+      
+      p->state = RUNNABLE;
     }
+    
+    release(&p->lock);
   }
 }
 

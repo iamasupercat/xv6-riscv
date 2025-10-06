@@ -80,9 +80,18 @@ usertrap(void)
   if(killed(p))
     kexit(-1);
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  // which_dev == 2가 타이머 인터럽트 의미
+  if(which_dev == 2 && p && p->state == RUNNING) {
+    p->runtime++;
+    p->vruntime += 1024 / p->weight;
+    p->timeslice--;
+
+    // 할당된 시간을 다 사용했다면 vdeadline 갱신 후 yield
+    if (p->timeslice <= 0) {
+      p->vdeadline = p->vruntime + (SCHED_BASE_SLICE * 1024) / p->weight;
+      yield();
+    }
+  }
 
   prepare_return();
 
@@ -151,9 +160,18 @@ kerneltrap()
     panic("kerneltrap");
   }
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0)
-    yield();
+  if(which_dev == 2 && myproc() && myproc()->state == RUNNING) {
+    struct proc *p = myproc();
+
+    p->runtime++;
+    p->vruntime += 1024 / p->weight;
+    p->timeslice--;
+
+    if (p->timeslice <= 0) {
+      p->vdeadline = p->vruntime + (SCHED_BASE_SLICE * 1024) / p->weight;
+      yield();
+    }
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -174,7 +192,8 @@ clockintr()
   // ask for the next timer interrupt. this also clears
   // the interrupt request. 1000000 is about a tenth
   // of a second.
-  w_stimecmp(r_time() + 1000000);
+  // 채점 및 구현 용이를 위해 100000으로 변경
+  w_stimecmp(r_time() + 100000);
 }
 
 // check if it's an external interrupt or software interrupt,

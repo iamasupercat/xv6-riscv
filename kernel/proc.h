@@ -91,8 +91,16 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
-  int nice;                    // Priority of the process
   
+  int nice;                    // Priority of the process
+  uint weight;              
+  uint vruntime;           
+  uint vdeadline;           
+  int is_eligible;          
+  uint timeslice;              // 남은 실행 시간 (타이머 틱마다 감소)
+  uint runtime;                
+
+
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 
