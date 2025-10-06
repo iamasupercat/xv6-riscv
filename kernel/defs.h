@@ -106,6 +106,8 @@ int             getnice(int);
 int             setnice(int,int);
 void            ps(int);
 int             waitpid(int);
+void            switchuvm(struct proc *p);
+void            switchkvm(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

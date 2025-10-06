@@ -9,13 +9,7 @@
 extern uint ticks;
 extern struct spinlock tickslock;
 
-struct cpu cpus[NCPU];
-struct proc proc[NPROC];
-struct proc *initproc;
-int nextpid = 1;
-struct spinlock pid_lock;
-struct spinlock wait_lock;
-struct spinlock proc_lock; // EEVDF를 위해 추가한 lock
+struct spinlock proc_lock;
 
 static const int nice_to_weight[40] = {
   88761, 71755, 56483, 46273, 36291, // 0-4
@@ -32,8 +26,29 @@ static uint min_vruntime = 0;
 static uint total_runqueue_weight = 0;
 static uint v_sum_weighted_diff = 0;
 
-static void update_scheduler_globals(void);
-static int check_eligibility(struct proc *p);
+struct cpu cpus[NCPU];
+
+struct proc proc[NPROC];
+
+struct proc *initproc;
+
+int nextpid = 1;
+struct spinlock pid_lock;
+
+extern void forkret(void);
+static void freeproc(struct proc *p);
+
+extern char trampoline[]; // trampoline.S
+
+// helps ensure that wakeups of wait()ing
+// parents are not lost. helps obey the
+// memory model when using p->parent.
+// must be acquired before any p->lock.
+struct spinlock wait_lock;
+
+// Allocate a page for each process's kernel stack.
+// Map it high in memory, followed by an invalid
+// guard page.
 
 // eligibility 체크에 필요한 3개의 전역 변수를 계산/업데이트하는 함수
 static void
@@ -80,29 +95,27 @@ check_eligibility(struct proc *p)
   return lhs >= rhs;
 }
 
-struct cpu cpus[NCPU];
+void
+switchuvm(struct proc *p)
+{
+  if(p == 0)
+    panic("switchuvm: no process");
+  if(p->kstack == 0)
+    panic("switchuvm: no kstack");
+  if(p->pagetable == 0)
+    panic("switchuvm: no pagetable");
 
-struct proc proc[NPROC];
+  w_satp(MAKE_SATP(p->pagetable));
+  sfence_vma();
+}
 
-struct proc *initproc;
+void
+switchkvm(void)
+{
+  w_satp(MAKE_SATP(kernel_pagetable));
+  sfence_vma();
+}
 
-int nextpid = 1;
-struct spinlock pid_lock;
-
-extern void forkret(void);
-static void freeproc(struct proc *p);
-
-extern char trampoline[]; // trampoline.S
-
-// helps ensure that wakeups of wait()ing
-// parents are not lost. helps obey the
-// memory model when using p->parent.
-// must be acquired before any p->lock.
-struct spinlock wait_lock;
-
-// Allocate a page for each process's kernel stack.
-// Map it high in memory, followed by an invalid
-// guard page.
 int
 getnice(int pid)
 {
