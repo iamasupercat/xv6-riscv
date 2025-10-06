@@ -66,6 +66,27 @@ void
 kvminit(void)
 {
   kernel_pagetable = kvmmake();
+
+    // --- 아래 디버깅 코드를 추가하세요 ---
+    printf("DEBUG: kvminit finished.\n");
+    if(kernel_pagetable == 0) {
+      printf("!!! DEBUG: kvmmake returned NULL! Out of memory? !!!\n");
+    } else {
+      printf("DEBUG: kernel_pagetable address is %p\n", kernel_pagetable);
+  
+      // 페이지 테이블이 생성된 직후에 내용물을 검사합니다.
+      if(kernel_pagetable[256] != 0) {
+          printf(">>> DEBUG: SUCCESS! kernel_pagetable[256] is NOT ZERO here. Value: %lx\n", kernel_pagetable[256]);
+      } else {
+          printf("!!! DEBUG: FAILURE! kernel_pagetable[256] is STILL ZERO here. !!!\n");
+      }
+  
+      if(kernel_pagetable[511] != 0) {
+          printf(">>> DEBUG: SUCCESS! kernel_pagetable[511] is NOT ZERO here. Value: %lx\n", kernel_pagetable[511]);
+      } else {
+          printf("!!! DEBUG: FAILURE! kernel_pagetable[511] is STILL ZERO here. !!!\n");
+      }
+    }
 }
 
 // Switch the current CPU's h/w page table register to
