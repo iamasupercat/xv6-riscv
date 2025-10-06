@@ -9,8 +9,13 @@
 extern uint ticks;
 extern struct spinlock tickslock;
 
-// 프로세스 배열 전체를 보호하기 위한 새로운 spinlock
-struct spinlock proc_lock;
+struct cpu cpus[NCPU];
+struct proc proc[NPROC];
+struct proc *initproc;
+int nextpid = 1;
+struct spinlock pid_lock;
+struct spinlock wait_lock;
+struct spinlock proc_lock; // EEVDF를 위해 추가한 lock
 
 static const int nice_to_weight[40] = {
   88761, 71755, 56483, 46273, 36291, // 0-4
@@ -36,12 +41,11 @@ update_scheduler_globals(void)
 {
   struct proc *p;
 
-  // 1. 변수 초기화
   min_vruntime = (uint)-1;
   total_runqueue_weight = 0;
   v_sum_weighted_diff = 0;
 
-  // 2. 실행 가능한(RUNNABLE) 프로세스들을 순회하며 min_vruntime과 total_weight 계산
+  // RUNNABLE 프로세스들을 순회하며 min_vruntime과 total_weight 계산
   for(p = proc; p < & proc[NPROC]; p++){
     if(p->state == RUNNABLE) {
       if (p->vruntime < min_vruntime)
@@ -54,7 +58,7 @@ update_scheduler_globals(void)
   if(min_vruntime == (uint)-1)
     return;
 
-  // 3. 다시 순회하며 v_sum_weighted_diff 계산
+  // 다시 순회하며 v_sum_weighted_diff 계산
   for(p = proc; p < & proc[NPROC]; p++){
     if(p->state == RUNNABLE) {
       v_sum_weighted_diff += (p->vruntime - min_vruntime) * p->weight;
@@ -149,8 +153,13 @@ ps(int pid)
   char *state;
 
   if (pid == 0) {
-    printf("\nNAME\tPID\tSTATE\tPRIO\tWEIGHT\tR/W\tRUNTIME\tVRUNTIME  VDEADLINE ELIGIBLE\n");
-    printf("------------------------------------------------------------------------------------------\n");
+    uint total_militicks;
+    acquire(&tickslock);
+    total_militicks = ticks * 1000;
+    release(&tickslock);
+    printf("\ntick: %d\n", total_militicks);
+
+    printf("\nname\tpid\tstate\tpriority\truntime/weight\truntime\tvruntime\t  vdeadline\t    is_eligible\ttick %d\n", total_militicks);
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->state == UNUSED) {
@@ -161,12 +170,11 @@ ps(int pid)
         state = states[p->state];
       else
         state = "???";
-      printf("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t  %d\t    %s\n",
+      printf("%s\t%d\t%s\t%d\t%d\t%d\t%d\t  %d\t    %s\n",
           p->name,
           p->pid,
           state,
           p->nice,
-          p->weight,
           (p->weight > 0 ? p->runtime / p->weight : 0), // 0으로 나누는 것 방지
           p->runtime,
           p->vruntime,
@@ -175,11 +183,6 @@ ps(int pid)
 
       release(&p->lock);
     }
-    uint total_ticks;
-    acquire(&tickslock);
-    total_ticks = ticks;
-    release(&tickslock);
-    printf("\nTotal Ticks (mtick): %d\n", total_ticks);
   }
   else {
     for(p = proc; p < &proc[NPROC]; p++){

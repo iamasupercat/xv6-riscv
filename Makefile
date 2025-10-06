@@ -142,9 +142,19 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_mytest\
-	$U/_test_H\
-	$U/_test_L\
+	$U/_pa1_mytest\
+	$U/_pa1_testH\
+	$U/_pa1_testL\
+	$U/_pa2_mytest\
+	$U/_pa2_mytest1\
+	$U/_pa2_mytest2\
+	$U/_pa2_mytest3\
+	$U/_pa2_mytest4\
+	$U/_pa2_mytest5\
+	$U/_pa2_mytest6\
+	$U/_pa2_mytest7\
+	$U/_pa2_mytest8\
+	$U/_pa2_mytest9\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
