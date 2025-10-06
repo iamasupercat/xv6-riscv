@@ -708,7 +708,11 @@ scheduler(void)
       switchkvm();
       c->proc = 0;
     }
-    release(&proc_lock);
+    else {
+      // 실행할 프로세스를 찾지 못했을 경우 (디버깅 코드)
+      printf("scheduler: no eligible process found, spinning...\n");
+      release(&proc_lock);
+    }
   }
 }
 
