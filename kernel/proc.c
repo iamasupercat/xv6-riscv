@@ -673,8 +673,10 @@ scheduler(void)
   c->proc = 0;
   for(;;){
     intr_on(); // Enable interrupts
+    printf("scheduler: top of loop\n"); // 디버깅 코드
 
     acquire(&proc_lock);
+    printf("scheduler: acquired proc_lock\n"); // 디버깅 코드
 
     // 전역 변수들 (min_vruntime 등)을 최신 상태로 업데이트
     update_scheduler_globals();
@@ -709,8 +711,7 @@ scheduler(void)
       c->proc = 0;
     }
     else {
-      // 실행할 프로세스를 찾지 못했을 경우 (디버깅 코드)
-      printf("scheduler: no eligible process found, spinning...\n");
+      printf("scheduler: no eligible process found, spinning...\n"); // 디버깅 코드
       release(&proc_lock);
     }
   }
