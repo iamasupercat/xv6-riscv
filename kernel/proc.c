@@ -355,13 +355,6 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-  p->nice = NICE_DEFAULT;
-  p->weight = nice_to_weight[NICE_DEFAULT]; // init을 위한 초기화
-  p->vruntime = 0; // init을 위한 초기화
-  p->vdeadline = 0;
-  p->is_eligible = 0;
-  p->timeslice = 0;
-
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -382,6 +375,13 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  p->nice = NICE_DEFAULT;
+  p->weight = nice_to_weight[NICE_DEFAULT]; // init을 위한 초기화
+  p->vruntime = 0; // init을 위한 초기화
+  p->vdeadline = 0;
+  p->is_eligible = 0;
+  p->timeslice = TIME_SLICE;
 
   return p;
 }
@@ -709,7 +709,7 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
 
-      p->timeslice = SCHED_BASE_SLICE;
+      p->timeslice = TIME_SLICE;
 
       swtch(&(c->context), &(p->context));
       switchkvm();
@@ -840,7 +840,7 @@ wakeup(void *chan)
     if(p->state == SLEEPING && p->chan == chan) {
       p->is_eligible = 0; 
       p->timeslice = 0; 
-      p->vdeadline = p->vruntime + (SCHED_BASE_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
+      p->vdeadline = p->vruntime + (TIME_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
       
       p->state = RUNNABLE;
     }

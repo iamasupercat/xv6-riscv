@@ -14,4 +14,4 @@
 #define USERSTACK    1     // user stack pages
 
 #define NICE_DEFAULT 20
-#define SCHED_BASE_SLICE 5
+#define TIME_SLICE 5
