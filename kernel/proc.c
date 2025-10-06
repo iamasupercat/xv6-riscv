@@ -146,6 +146,8 @@ ps(int pid)
     release(&tickslock);
 
     printf("\nname\tpid\tstate\tpriority\truntime/weight\t    runtime\t    vruntime\t    vdeadline\t    is_eligible\t    tick %d\n", total_militicks);
+    printf("\n%-15s %-5s %-8s %-8s %-12s %-10s %-10s %-10s %-10s tick %d\n",
+      "name", "pid", "state", "priority", "runtime/weight", "runtime", "vruntime", "vdeadline", "is_eligible", total_militicks);
     for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
       if(p->state == UNUSED) {
@@ -156,7 +158,7 @@ ps(int pid)
         state = states[p->state];
       else
         state = "???";
-      printf("%s\t%d\t%s\t%d\t%d\t    %d\t    %d\t    %d\t    %s\n",
+      printf("%-15s %-5d %-8s %-8d %-12d %-10d %-10d %-10d %-10s\n",
           p->name,
           p->pid,
           state,
