@@ -81,21 +81,23 @@ usertrap(void)
     kexit(-1);
 
   // which_dev == 2가 타이머 인터럽트 의미
-  if(which_dev == 2 && p && p->state == RUNNING) {
-    // sleep을 깨우기 위한 로직
+  if(which_dev == 2) {
+    // 1. 시스템 시계 관리 (항상 실행)
     acquire(&tickslock);
     ticks++;
     wakeup(&ticks);
     release(&tickslock);
 
-    p->runtime++;
-    p->vruntime += 1024 / p->weight;
-    p->timeslice--;
+    // 2. EEVDF 스케줄러 관리 (현재 실행중인 유저 프로세스가 있을 때만 실행)
+    if(p && p->state == RUNNING) { 
+        p->runtime++;
+        p->vruntime += 1024 / p->weight;
+        p->timeslice--;
 
-    // 할당된 시간을 다 사용했다면 vdeadline 갱신 후 yield
-    if (p->timeslice <= 0) {
-      p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
-      yield();
+        if (p->timeslice <= 0) {
+            p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
+            yield();
+        }
     }
   }
 
@@ -168,26 +170,16 @@ kerneltrap()
 
 // which_dev == 2가 타이머 인터럽트 의미
   if(which_dev == 2) {
-    // --- 1. 시스템 시계 관리 (항상 실행) ---
-    // sleep을 깨우기 위한 로직
     acquire(&tickslock);
     ticks++;
     wakeup(&ticks);
     release(&tickslock);
 
-    // --- 2. EEVDF 스케줄러 관리 (현재 실행중인 유저 프로세스가 있을 때만 실행) ---
-    if(myproc() && myproc()->state == RUNNING) {
-        struct proc *p = myproc();
-        p->runtime++;
-        p->vruntime += 1024 / p->weight;
-        p->timeslice--;
-
-        if (p->timeslice <= 0) {
-            p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
-            yield();
-        }
-    }
-}
+    // 커널에서 실행 중이었더라도, 타이머 인터럽트가 발생한 김에
+    // 다른 프로세스에게 CPU를 양보할 기회를 줌
+    if(myproc() != 0 && myproc()->state == RUNNING)
+      yield();
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
