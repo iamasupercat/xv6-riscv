@@ -38,7 +38,7 @@ int main(void) {
       if (id == 1) {
         // 자식 1: sleep했다가 깨어남
         printf("[Child %d] sleep 시작 (tick= %d)\n", id, uptime());
-        sleep(300);  // 충분히 잠들기
+        //sleep(300);  // 충분히 잠들기
         printf("[Child %d] 깨어남 (tick= %d)\n", id, uptime());
       }
 
