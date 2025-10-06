@@ -105,7 +105,27 @@ switchuvm(struct proc *p)
   if(p->pagetable == 0)
     panic("switchuvm: no pagetable");
 
+  printf("DEBUG: Verifying kernel mappings before w_satp...\n");
+
+    // 커널 매핑의 시작(256)과 끝(511) 항목을 샘플로 비교해봅니다.
+    if(p->pagetable[256] == kernel_pagetable[256] && kernel_pagetable[256] != 0){
+      printf("DEBUG: PTE[256] seems to have copied correctly. Value: %p\n", p->pagetable[256]);
+    } else {
+      printf("!!! DEBUG: PTE[256] MISMATCH OR IS ZERO !!!\n");
+      printf("    p->pagetable[256]      = %p\n", p->pagetable[256]);
+      printf("    kernel_pagetable[256] = %p\n", kernel_pagetable[256]);
+    }
+  
+    if(p->pagetable[511] == kernel_pagetable[511] && kernel_pagetable[511] != 0){
+      printf("DEBUG: PTE[511] seems to have copied correctly. Value: %p\n", p->pagetable[511]);
+    } else {
+      printf("!!! DEBUG: PTE[511] MISMATCH OR IS ZERO !!!\n");
+      printf("    p->pagetable[511]      = %p\n", p->pagetable[511]);
+      printf("    kernel_pagetable[511] = %p\n", kernel_pagetable[511]);
+    }
+
   w_satp(MAKE_SATP(p->pagetable));
+  printf("switchuvm: w_satp finished.\n");
   sfence_vma();
 }
 
