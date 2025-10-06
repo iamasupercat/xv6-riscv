@@ -98,22 +98,15 @@ check_eligibility(struct proc *p)
 void
 switchuvm(struct proc *p)
 {
-  printf("switchuvm: starting for pid %d\n", p->pid);
   if(p == 0)
     panic("switchuvm: no process");
   if(p->kstack == 0)
     panic("switchuvm: no kstack");
   if(p->pagetable == 0)
     panic("switchuvm: no pagetable");
-  // 페이지 테이블 주소가 유효한지 확인하기 위해 출력해봅니다. (%p는 주소 출력 형식)
-  printf("switchuvm: checks passed for pid %d. pagetable address: %p\n", p->pid, p->pagetable);
-
 
   w_satp(MAKE_SATP(p->pagetable));
-  // 만약 위 라인에서 멈춘다면, 아래 메시지는 출력되지 않을 것입니다.
-  printf("switchuvm: w_satp finished.\n");
   sfence_vma();
-  printf("switchuvm: sfence_vma finished. function complete.\n");
 }
 
 void
@@ -426,6 +419,10 @@ proc_pagetable(struct proc *p)
   pagetable = uvmcreate();
   if(pagetable == 0)
     return 0;
+    
+  for(int i = 256; i < 512; i++){
+      pagetable[i] = kernel_pagetable[i];
+  }
 
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
