@@ -9,8 +9,6 @@
 extern uint ticks;
 extern struct spinlock tickslock;
 
-struct spinlock proc_lock;
-
 static const int nice_to_weight[40] = {
   88761, 71755, 56483, 46273, 36291, // 0-4
   29154, 23254, 18705, 14949, 11916, // 5-9
@@ -21,10 +19,6 @@ static const int nice_to_weight[40] = {
   110, 87, 70, 56, 45,               // 30-34
   36, 29, 23, 18, 15                // 35-39
 };
-
-static uint min_vruntime = 0;
-static uint total_runqueue_weight = 0;
-static uint v_sum_weighted_diff = 0;
 
 struct cpu cpus[NCPU];
 
@@ -50,94 +44,50 @@ struct spinlock wait_lock;
 // Map it high in memory, followed by an invalid
 // guard page.
 
-// eligibility 체크에 필요한 3개의 전역 변수를 계산/업데이트하는 함수
+struct eevdf_data {
+  uint64 min_vruntime;
+  uint sum_weight;
+  uint64 sum_weighted_diff;
+};
+
+// EEVDF 데이터 수집 함수
+// 시스템의 현재 상태에 대한 '스냅샷'을 만듦
 static void
-update_scheduler_globals(void)
+collect_eevdf_data(struct eevdf_data *data)
 {
   struct proc *p;
-
-  min_vruntime = (uint)-1;
-  total_runqueue_weight = 0;
-  v_sum_weighted_diff = 0;
-
-  // RUNNABLE 프로세스들을 순회하며 min_vruntime과 total_weight 계산
-  for(p = proc; p < & proc[NPROC]; p++){
-    if(p->state == RUNNABLE) {
-      if (p->vruntime < min_vruntime)
-        min_vruntime = p->vruntime;
-      total_runqueue_weight += p->weight;
-    }
-  }
-
-  // min_vruntime을 찾지 못했다면 (RUNNABLE 프로세스가 없다면) 종료
-  if(min_vruntime == (uint)-1)
-    return;
-
-  // 다시 순회하며 v_sum_weighted_diff 계산
-  for(p = proc; p < & proc[NPROC]; p++){
-    if(p->state == RUNNABLE) {
-      v_sum_weighted_diff += (p->vruntime - min_vruntime) * p->weight;
-    }
-  }
-}
-
-static int
-check_eligibility(struct proc *p)
-{
-  // RUNNABLE 프로세스가 없거나, total_weight가 0이면 체크 불가
-  if(total_runqueue_weight == 0)
-    return 0;
-
-  // 공식: Σ((vi - v0) * wi) >= (vi - v0) * Σwi
-  uint lhs = v_sum_weighted_diff;
-  uint rhs = (p->vruntime - min_vruntime) * total_runqueue_weight;
-
-  return lhs >= rhs;
-}
-
-void
-switchuvm(struct proc *p)
-{
-  if(p == 0)
-    panic("switchuvm: no process");
-  if(p->kstack == 0)
-    panic("switchuvm: no kstack");
-  if(p->pagetable == 0)
-    panic("switchuvm: no pagetable");
-
-  // --- 아래 디버깅 코드의 %p를 %lx로 수정합니다 ---
-  printf("DEBUG: Verifying kernel mappings before w_satp...\n");
   
-  if(p->pagetable[256] == kernel_pagetable[256] && kernel_pagetable[256] != 0){
-    // %p -> %lx 로 수정
-    printf("DEBUG: PTE[256] seems to have copied correctly. Value: %lx\n", p->pagetable[256]);
-  } else {
-    printf("!!! DEBUG: PTE[256] MISMATCH OR IS ZERO !!!\n");
-    // %p -> %lx 로 수정
-    printf("    p->pagetable[256]      = %lx\n", p->pagetable[256]);
-    printf("    kernel_pagetable[256] = %lx\n", kernel_pagetable[256]);
-  }
-  
-  if(p->pagetable[511] == kernel_pagetable[511] && kernel_pagetable[511] != 0){
-    // %p -> %lx 로 수정
-    printf("DEBUG: PTE[511] seems to have copied correctly. Value: %lx\n", p->pagetable[511]);
-  } else {
-    printf("!!! DEBUG: PTE[511] MISMATCH OR IS ZERO !!!\n");
-    // %p -> %lx 로 수정
-    printf("    p->pagetable[511]      = %lx\n", p->pagetable[511]);
-    printf("    kernel_pagetable[511] = %lx\n", kernel_pagetable[511]);
+  // 데이터 초기화
+  data->min_vruntime = (uint64)-1; // uint64의 최대값으로 초기화
+  data->sum_weight = 0;
+  data->sum_weighted_diff = 0;
+
+  // 첫 번째 순회: 모든 RUNNABLE/RUNNING 프로세스를 대상으로
+  // 가장 작은 vruntime과 모든 weight의 합을 찾음
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state == RUNNABLE || p->state == RUNNING) {
+      data->sum_weight += p->weight;
+      if(p->vruntime < data->min_vruntime)
+        data->min_vruntime = p->vruntime;
+    }
+    release(&p->lock);
   }
 
-  w_satp(MAKE_SATP(p->pagetable));
-  printf("switchuvm: w_satp finished.\n");
-  sfence_vma();
-}
+  // 실행 가능한 프로세스가 하나도 없으면 min_vruntime을 0으로 설정
+  if(data->min_vruntime == (uint64)-1)
+    data->min_vruntime = 0;
 
-void
-switchkvm(void)
-{
-  w_satp(MAKE_SATP(kernel_pagetable));
-  sfence_vma();
+  // 두 번째 순회: 위에서 찾은 min_vruntime을 사용하여
+  // 가중치가 적용된 vruntime 차이의 총합을 계산
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state == RUNNABLE || p->state == RUNNING) {
+      // (v_j - v_0) * w_j 의 총합
+      data->sum_weighted_diff += (p->vruntime - data->min_vruntime) * p->weight;
+    }
+    release(&p->lock);
+  }
 }
 
 int
@@ -213,9 +163,9 @@ ps(int pid)
           state,
           p->nice,
           (p->weight > 0 ? p->runtime / p->weight : 0), // 0으로 나누는 것 방지
-          p->runtime,
-          p->vruntime,
-          p->vdeadline,
+          p->runtime * 1000,
+          p->vruntime * 1000,
+          p->vdeadline * 1000,
           (p->is_eligible ? "true" : "false"));
 
       release(&p->lock);
@@ -304,7 +254,7 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-  initlock(&proc_lock, "proc_lock");
+
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
@@ -443,10 +393,6 @@ proc_pagetable(struct proc *p)
   pagetable = uvmcreate();
   if(pagetable == 0)
     return 0;
-    
-  for(int i = 256; i < 512; i++){
-      pagetable[i] = kernel_pagetable[i];
-  }
 
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
@@ -697,50 +643,64 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  struct proc *best = 0; // 가장 실행하기 좋은 프로세스를 담을 변수
+  struct eevdf_data data;
 
   c->proc = 0;
+
   for(;;){
-    intr_on(); // Enable interrupts
+    intr_on();
 
-    acquire(&proc_lock);
+    // 스케줄링 판단에 필요한 데이터 스냅샷을 수집
+    collect_eevdf_data(&data);
+    best = 0;
 
-    // 전역 변수들 (min_vruntime 등)을 최신 상태로 업데이트
-    update_scheduler_globals();
-
-    struct proc *earliest_proc = 0;
-    uint min_deadline = (uint)-1; // Unsigned int의 최대값으로 초기화
-
-    for(p = proc; p < & proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-
-      p->is_eligible = check_eligibility(p);
-
-      if(p->is_eligible){
-        if(p->vdeadline < min_deadline){
-          min_deadline = p->vdeadline;
-          earliest_proc = p;
+    // 모든 프로세스를 순회하며 가장 좋은 후보(best) 찾기
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        // Eligibility 계산
+        int eligible = 1; // 기본값은 '자격 있음'
+        if(data.sum_weight > 0) {
+          uint64 p_diff = (p->vruntime - data.min_vruntime) * data.sum_weight;
+          uint64 avg_diff = data.sum_weighted_diff;
+          eligible = (avg_diff >= p_diff);
         }
+        
+        if(eligible) {
+          // 실행 자격이 있다면, 현재까지 찾은 best 후보와 vdeadline을 비교
+          if(best == 0 || p->vdeadline < best->vdeadline) {
+            // p가 더 좋은 후보라면, 기존 best 후보의 lock은 풀어주고
+            if(best)
+              release(&best->lock);
+            // p를 새로운 best 후보로 삼음 (p의 lock은 계속 잡고 있음)
+            best = p;
+          } else {
+            release(&p->lock);
+          }
+        } else {
+          release(&p->lock);
+        }
+      } else {
+        release(&p->lock);
       }
     }
-    if(earliest_proc){
-      p = earliest_proc;
 
-      acquire(&p->lock);
-      release(&proc_lock);
-
+    // 가장 좋은 후보를 찾았다면 실행
+    if(best) {
+      p = best; // 이제 p는 실행될 프로세스
+      
+      // p의 lock은 이미 잡혀있는 상태
       p->state = RUNNING;
       c->proc = p;
-      switchuvm(p);
 
-      p->timeslice = TIME_SLICE;
+      // context switch
+      swtch(&c->context, &p->context);
 
-      swtch(&(c->context), &(p->context));
-      switchkvm();
+      // --- 프로세스가 실행을 멈추고 제어권이 여기로 돌아온 후 ---
       c->proc = 0;
-    }
-    else {
-      release(&proc_lock);
+      
+      release(&p->lock);
     }
   }
 }

@@ -18,8 +18,6 @@ struct context {
   uint64 s11;
 };
 
-extern pagetable_t kernel_pagetable;
-
 // Per-CPU state.
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
