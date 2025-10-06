@@ -40,6 +40,5 @@ main()
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
   }
-  printf("main: starting scheduler\n"); // 디버깅 코드
   scheduler();        
 }

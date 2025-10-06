@@ -55,6 +55,7 @@ static void
 update_scheduler_globals(void)
 {
   struct proc *p;
+  printf("update_scheduler_globals: starting...\n"); // 디버깅 코드
 
   min_vruntime = (uint)-1;
   total_runqueue_weight = 0;
@@ -79,6 +80,8 @@ update_scheduler_globals(void)
       v_sum_weighted_diff += (p->vruntime - min_vruntime) * p->weight;
     }
   }
+
+  printf("update_scheduler_globals: finished.\n"); // 디버깅 코드
 }
 
 static int
@@ -673,13 +676,13 @@ scheduler(void)
   c->proc = 0;
   for(;;){
     intr_on(); // Enable interrupts
-    printf("scheduler: top of loop\n"); // 디버깅 코드
 
     acquire(&proc_lock);
-    printf("scheduler: acquired proc_lock\n"); // 디버깅 코드
 
+    printf("scheduler: calling update_scheduler_globals...\n"); // 디버깅 코드
     // 전역 변수들 (min_vruntime 등)을 최신 상태로 업데이트
     update_scheduler_globals();
+    printf("scheduler: returned from update_scheduler_globals.\n"); // 디버깅 코드
 
     struct proc *earliest_proc = 0;
     uint min_deadline = (uint)-1; // Unsigned int의 최대값으로 초기화
