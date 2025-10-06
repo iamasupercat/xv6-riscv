@@ -695,20 +695,29 @@ scheduler(void)
         }
       }
     }
-
+    printf("scheduler: finished scanning for eligible procs.\n");   
     if(earliest_proc){
+      printf("scheduler: Found a proc to run (pid %d)\n", earliest_proc->pid);
       p = earliest_proc;
 
+      printf("scheduler: acquiring p->lock for pid %d...\n", p->pid);
       acquire(&p->lock);
+      printf("scheduler: ...acquired p->lock. Releasing proc_lock...\n");
       release(&proc_lock);
 
+      printf("scheduler: setting state to RUNNING...\n");
       p->state = RUNNING;
       c->proc = p;
+      printf("scheduler: calling switchuvm...\n");
       switchuvm(p);
 
       p->timeslice = SCHED_BASE_SLICE;
 
+      printf("scheduler: calling swtch to start pid %d...\n", p->pid);
       swtch(&(c->context), &(p->context));
+
+      // --- 중요: 아래 메시지는 CPU 제어권이 다시 스케줄러로 돌아왔을 때만 출력됩니다 ---
+      printf("scheduler: returned from swtch.\n");
       switchkvm();
       c->proc = 0;
     }
