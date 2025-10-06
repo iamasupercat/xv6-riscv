@@ -40,7 +40,7 @@ main(void)
       while (1) {
         for (int j = 0; j < 50000000; j++)
           x += j;
-        sleep(1);  // ps 타이밍 조절용
+        //sleep(1);  // ps 타이밍 조절용
       }
       exit(0); // 도달 X
     } else {
