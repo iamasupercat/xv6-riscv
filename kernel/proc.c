@@ -671,7 +671,7 @@ scheduler(void)
 
   c->proc = 0;
   for(;;){
-    sti(); // Enable interrupts
+    intr_on(); // Enable interrupts
 
     acquire(&proc_lock);
 
