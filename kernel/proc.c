@@ -679,13 +679,10 @@ scheduler(void)
     // 전역 변수들 (min_vruntime 등)을 최신 상태로 업데이트
     update_scheduler_globals();
 
-    printf("scheduler: returned from update_scheduler_globals.\n"); // 디버깅 코드
     struct proc *earliest_proc = 0;
     uint min_deadline = (uint)-1; // Unsigned int의 최대값으로 초기화
-    printf("scheduler: starting to scan for eligible procs...\n"); // 디버깅 코드
 
     for(p = proc; p < & proc[NPROC]; p++){
-      printf("scheduler: scanning pid %d with state %d\n", p->pid, p->state); // 디버깅 코드
       if(p->state != RUNNABLE)
         continue;
 
@@ -698,13 +695,16 @@ scheduler(void)
         }
       }
     }
-    printf("scheduler: finished scanning for eligible procs.\n"); // 디버깅 코드
 
     if(earliest_proc){
       p = earliest_proc;
+
+      acquire(&p->lock);
+      release(&proc_lock);
+
+      p->state = RUNNING;
       c->proc = p;
       switchuvm(p);
-      p->state = RUNNING;
 
       p->timeslice = SCHED_BASE_SLICE;
 
@@ -713,7 +713,6 @@ scheduler(void)
       c->proc = 0;
     }
     else {
-      printf("scheduler: no eligible process found, spinning...\n"); // 디버깅 코드
       release(&proc_lock);
     }
   }
