@@ -44,7 +44,7 @@ int main(void) {
         // IO-bound 프로세스
         printf("[Child %d] IO-bound 시작 (PID: %d)\n", i, getpid());
         for (int k = 0; k < 10; k++) {
-          sleep(30);  // I/O 발생처럼 보이게 sleep
+          // sleep(30);  // I/O 발생처럼 보이게 sleep
           ps(0);      // 현재 상태 출력
         }
         exit(0);  // 종료

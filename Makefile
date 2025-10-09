@@ -155,6 +155,7 @@ UPROGS=\
 	$U/_pa27\
 	$U/_pa28\
 	$U/_pa29\
+	$U/_pa20\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -86,8 +86,6 @@ check_eligibility(struct proc *p)
     return 0;
 
   // 공식: Σ((vi - v0) * wi) >= (vi - v0) * Σwi
-  // 좌측항 = v_sum_weighted_diff 
-  // 우측항 = (p->vruntime - min_vruntime) * total_runqueue_weight
   uint lhs = v_sum_weighted_diff;
   uint rhs = (p->vruntime - min_vruntime) * total_runqueue_weight;
 
