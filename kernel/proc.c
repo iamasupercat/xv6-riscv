@@ -120,6 +120,7 @@ setnice(int pid, int n)
   acquire(&p->lock);
   if(p->pid == pid && n>=0 && n<=39){
    p->nice = n;
+   p->weight = nice_to_weight[n];
    release(&p->lock);
    return 0;
   }
@@ -352,6 +353,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->nice = NICE_DEFAULT;
   p->weight = nice_to_weight[NICE_DEFAULT]; // init을 위한 초기화
   p->vruntime = 0; // init을 위한 초기화
   p->vdeadline = 0;
@@ -659,9 +661,10 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        
-        if(check_eligibility(p)) {
-          
+        p->is_eligible = check_eligibility(p);
+
+        if(p->is_eligible) {
+
           if(best == 0 || p->vdeadline < best->vdeadline) {
             if(best)
               release(&best->lock);
@@ -673,6 +676,8 @@ scheduler(void)
           release(&p->lock);
         }
       } else {
+        // RUNNABLE이 아닌 프로세스는 항상 eligible하지 않음
+        p->is_eligible = 0;
         release(&p->lock);
       }
     }
