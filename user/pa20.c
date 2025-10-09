@@ -11,7 +11,7 @@ void cpu_hog(const char* name) {
 }
 
 int main(int argc, char *argv[]) {
-    int nice_values[] = { 10, 20, 30 };
+    int nice_values[] = { 25, 29, 35 };
     int num_procs = sizeof(nice_values) / sizeof(int);
     
     printf("EEVDF scheduler test starting...\n");
