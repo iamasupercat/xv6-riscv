@@ -814,8 +814,8 @@ wakeup(void *chan)
     acquire(&p->lock);
 
     if(p->state == SLEEPING && p->chan == chan) {
-      p->is_eligible = 0; 
-      p->timeslice = 0; 
+      // p->is_eligible = 0; 
+      p->timeslice = TIME_SLICE; 
       p->vdeadline = p->vruntime + (TIME_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
       
       p->state = RUNNABLE;
