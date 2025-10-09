@@ -160,18 +160,9 @@ kerneltrap()
     panic("kerneltrap");
   }
 
-  if(which_dev == 2 && myproc() && myproc()->state == RUNNING) {
-    struct proc *p = myproc();
-
-    p->runtime++;
-    p->vruntime += 1024 / p->weight;
-    p->timeslice--;
-
-    if (p->timeslice <= 0) {
-      p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
-      yield();
-    }
-  }
+  // give up the CPU if this is a timer interrupt.
+  if(which_dev == 2 && myproc() != 0)
+    yield();
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
