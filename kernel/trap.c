@@ -88,6 +88,7 @@ usertrap(void)
 
     // 할당된 시간을 다 사용했다면 vdeadline 갱신 후 yield
     if (p->timeslice <= 0) {
+      p->timeslice = TIME_SLICE;
       p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
       yield();
     }
