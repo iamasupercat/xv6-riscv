@@ -352,7 +352,6 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  p->nice = NICE_DEFAULT;
   p->weight = nice_to_weight[NICE_DEFAULT]; // init을 위한 초기화
   p->vruntime = 0; // init을 위한 초기화
   p->vdeadline = 0;
