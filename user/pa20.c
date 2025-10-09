@@ -4,7 +4,7 @@
 void cpu_hog(const char* name) {
     printf("Process '%s' starting cpu-intensive work.\n", name);
     long long j = 0;
-    for (long long i = 0; i < 2000000000; i++) {
+    for (long long i = 0; i < 2000000000000; i++) {
         j += i;
     }
     printf("Process '%s' finished. Result: %d\n", name, (int)(j & 0xFFFFFFFF));
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     printf("\n--- Parent starting observation. Will run 'ps' 15 times. ---\n\n");
     for (int i = 0; i < 15; i++) {
 
-        for (volatile int i = 0; i < 10000; i++) { }
+        for (volatile int i = 0; i < 100000000; i++) { }
         
         int ps_pid = fork();
         if (ps_pid == 0) {
