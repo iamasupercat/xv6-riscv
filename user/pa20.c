@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     printf("\n--- Parent starting observation. Will run 'ps' 15 times. ---\n\n");
     for (int i = 0; i < 15; i++) {
 
-        for (volatile int i = 0; i < 100000000; i++) { }
+        for (volatile int i = 0; i < 10000; i++) { }
         
         int ps_pid = fork();
         if (ps_pid == 0) {
