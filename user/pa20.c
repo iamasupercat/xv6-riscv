@@ -4,7 +4,7 @@
 void cpu_hog(const char* name) {
     printf("Process '%s' starting cpu-intensive work.\n", name);
     long long j = 0;
-    for (long long i = 0; i < 2000000000; i++) {
+    for (long long i = 0; i < 20000000000; i++) {
         j += i;
     }
     printf("Process '%s' finished. Result: %d\n", name, (int)(j & 0xFFFFFFFF));
