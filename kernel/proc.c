@@ -160,7 +160,7 @@ ps(int pid)
         state = states[p->state];
       else
         state = "???";
-      printf("%s\t%d\t%s\t%d\t%d\t    %d\t    %d\t    %d\t    %s\n",
+      printf("%s\t%d\t%s\t%d\t\t%d\t    %d\t    %d\t    %d\t    %s\n",
           p->name,
           p->pid,
           state,
