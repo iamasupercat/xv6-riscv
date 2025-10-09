@@ -11,7 +11,7 @@ void cpu_hog(const char* name) {
 }
 
 int main(int argc, char *argv[]) {
-    int nice_values[] = { 10, 15, 19 };
+    int nice_values[] = { 10, 20, 30 };
     int num_procs = sizeof(nice_values) / sizeof(int);
     
     printf("EEVDF scheduler test starting...\n");
@@ -33,8 +33,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("\n--- Parent starting observation. Will run 'ps' 15 times. ---\n\n");
-    for (int i = 0; i < 15; i++) {
+    printf("\n--- Parent starting observation. Will run 'ps' 5 times. ---\n\n");
+    for (int i = 0; i < 5; i++) {
 
         for (volatile int i = 0; i < 100000000; i++) { }
         
