@@ -165,7 +165,7 @@ ps(int pid)
           p->pid,
           state,
           p->nice,
-          (p->weight > 0 ? p->runtime * 1000 / p->weight : 0), // 0으로 나누는 것 방지
+          p->runtime * 1000 / p->weight, 
           p->runtime * 1000,
           p->vruntime * 1000,
           p->vdeadline * 1000,
@@ -479,15 +479,6 @@ kfork(void)
     return -1;
   }
 
-  np->parent = p;
-  *np->trapframe = *p->trapframe;
-
-  np->nice = p->nice;
-  np->weight = p->weight;
-  np->vruntime = p->vruntime;
-  np->vdeadline = 0;
-
-
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
@@ -519,6 +510,10 @@ kfork(void)
   release(&wait_lock);
 
   acquire(&np->lock);
+  np->nice = p->nice;
+  np->weight = p->weight;
+  np->vruntime = p->vruntime;
+  np->vdeadline = p->vruntime + (TIME_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
   np->state = RUNNABLE;
   release(&np->lock);
 
@@ -661,10 +656,8 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        p->is_eligible = check_eligibility(p);
 
-        if(p->is_eligible) {
-
+        if(p->is_eligible = check_eligibility(p)) {
           if(best == 0 || p->vdeadline < best->vdeadline) {
             if(best)
               release(&best->lock);
@@ -814,7 +807,6 @@ wakeup(void *chan)
     acquire(&p->lock);
 
     if(p->state == SLEEPING && p->chan == chan) {
-      // p->is_eligible = 0; 
       p->timeslice = TIME_SLICE; 
       p->vdeadline = p->vruntime + (TIME_SLICE * nice_to_weight[NICE_DEFAULT]) / p->weight;
       
