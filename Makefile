@@ -146,15 +146,6 @@ UPROGS=\
 	$U/_pa1_testH\
 	$U/_pa1_testL\
 	$U/_pa2\
-	$U/_pa21\
-	$U/_pa22\
-	$U/_pa23\
-	$U/_pa24\
-	$U/_pa25\
-	$U/_pa26\
-	$U/_pa27\
-	$U/_pa28\
-	$U/_pa29\
 	$U/_pa20\
 
 fs.img: mkfs/mkfs README $(UPROGS)
