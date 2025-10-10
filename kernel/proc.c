@@ -656,8 +656,9 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+        p->is_eligible = check_eligibility(p);
 
-        if(p->is_eligible = check_eligibility(p)) {
+        if(p->is_eligible) {
           if(best == 0 || p->vdeadline < best->vdeadline) {
             if(best)
               release(&best->lock);
