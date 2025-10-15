@@ -67,7 +67,20 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
-    // ok
+    // devintr()가 0이 아닌 값을 반환하면, 즉 디바이스 인터럽트가 발생하면, 이 블록 안에서 어떤 인터럽트인지 확인 후 바로 처리
+    
+    // which_dev == 2가 타이머 인터럽트 의미
+    if(which_dev == 2 && p && p->state == RUNNING) {
+      p->runtime++;
+      p->vruntime += 1024 / p->weight;
+      p->timeslice--;
+
+      // 할당된 시간을 다 사용했다면 vdeadline 갱신 후 yield
+      if (p->timeslice <= 0) {
+        p->timeslice = TIME_SLICE;
+        p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
+        yield();
+      }
   } else if((r_scause() == 15 || r_scause() == 13) &&
             vmfault(p->pagetable, r_stval(), (r_scause() == 13)? 1 : 0) != 0) {
     // page fault on lazily-allocated page
@@ -79,19 +92,6 @@ usertrap(void)
 
   if(killed(p))
     kexit(-1);
-
-  // which_dev == 2가 타이머 인터럽트 의미
-  if(which_dev == 2 && p && p->state == RUNNING) {
-    p->runtime++;
-    p->vruntime += 1024 / p->weight;
-    p->timeslice--;
-
-    // 할당된 시간을 다 사용했다면 vdeadline 갱신 후 yield
-    if (p->timeslice <= 0) {
-      p->timeslice = TIME_SLICE;
-      p->vdeadline = p->vruntime + (TIME_SLICE * 1024) / p->weight;
-      yield();
-    }
   }
 
   prepare_return();
