@@ -30,6 +30,10 @@ void ps(int);
 int meminfo(void);
 int waitpid(int);
 int sleep(int);
+// mmap project
+uint64 mmap(uint64 addr, int length, int prot, int flags, int fd, int offset);
+int munmap(uint64 addr);
+int freemem(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

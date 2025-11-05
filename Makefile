@@ -147,6 +147,8 @@ UPROGS=\
 	$U/_pa1_testL\
 	$U/_pa2\
 	$U/_pa20\
+	$U/_mmaptest\
+	$U/_pa3_testC\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

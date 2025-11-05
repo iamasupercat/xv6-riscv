@@ -48,3 +48,6 @@ entry("ps");
 entry("meminfo");
 entry("waitpid");
 entry("sleep");
+entry("mmap");
+entry("munmap");
+entry("freemem");

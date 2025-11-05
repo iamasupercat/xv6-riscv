@@ -140,6 +140,9 @@ void            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
+uint64          sys_mmap(void);
+uint64          sys_munmap(void);
+uint64          sys_freemem(void);
 
 // trap.c
 extern uint     ticks;
@@ -174,6 +177,12 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             ismapped(pagetable_t, uint64);
 uint64          vmfault(pagetable_t, uint64, int);
+uint64          do_mmap(uint64, int, int, int, int, int);
+int             do_munmap(uint64);
+void            fork_mmaps(struct proc *, struct proc *);
+
+// kalloc.c
+int             freemem(void);
 
 // plic.c
 void            plicinit(void);
