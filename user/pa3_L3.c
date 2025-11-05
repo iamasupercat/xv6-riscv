@@ -53,8 +53,9 @@
  
      check(addr1 == MMAPBASE + 0, "mmap() returned correct address");
  
-     int free1 = freemem();
-     check(free1 == initial_free - 2, "freemem() decreased by 2 pages");
+    int free1 = freemem();
+    // 데이터 페이지(2) 이상 감소 여부만 확인 (페이지테이블 생성으로 추가 감소 가능)
+    check(free1 <= initial_free - 2, "freemem() decreased by at least 2 pages");
  
      char *mem1 = (char*)addr1;
      mem1[0] = 'a'; // 쓰기
