@@ -116,11 +116,7 @@ do_mmap(uint64 addr, int length, int prot, int flags, int fd, int offset)
   uint64 start = MMAPBASE + addr;
 
   struct file *f = 0;
-  // Per request: when not using MAP_POPULATE, fd must be -1 and offset 0
-  if((flags & MAP_POPULATE) == 0){
-    if(fd != -1 || offset != 0)
-      return 0;
-  }
+  // Allow lazy file mappings (flags may be 0) and anonymous mappings.
   if((flags & MAP_ANONYMOUS) == 0){
     if(fd < 0 || fd >= NOFILE) return 0;
     f = p->ofile[fd];
