@@ -147,7 +147,7 @@ UPROGS=\
 	$U/_pa1_testL\
 	$U/_pa2\
 	$U/_pa20\
-	$U/_mmaptest\
+	$U/_pa3\
 	$U/_pa3_testL\
 
 
