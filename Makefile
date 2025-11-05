@@ -145,6 +145,9 @@ UPROGS=\
 	$U/_mytest\
 	$U/_test_H\
 	$U/_test_L\
+	$U/_pa3\
+	$U/_pa3_L\
+	$U/_pa3_C\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

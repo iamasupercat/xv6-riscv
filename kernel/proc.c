@@ -427,6 +427,9 @@ kfork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  // clone mmap areas & already-mapped pages
+  fork_mmaps(p, np);
+
   return pid;
 }
 

@@ -78,6 +78,32 @@ sys_wait(void)
 }
 
 uint64
+sys_mmap(void)
+{
+  uint64 addr; int length; int prot; int flags; int fd; int offset;
+  argaddr(0, &addr);
+  argint(1, &length);
+  argint(2, &prot);
+  argint(3, &flags);
+  argint(4, &fd);
+  argint(5, &offset);
+  return do_mmap(addr, length, prot, flags, fd, offset);
+}
+
+uint64
+sys_munmap(void)
+{
+  uint64 addr; argaddr(0, &addr); return do_munmap(addr);
+}
+
+uint64
+sys_freemem(void)
+{
+  // reuse meminfo()/PGSIZE to report free page count
+  return meminfo() / PGSIZE;
+}
+
+uint64
 sys_sbrk(void)
 {
   uint64 addr;
