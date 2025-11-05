@@ -483,6 +483,9 @@ kexit(int status)
   
   acquire(&p->lock);
 
+  // Ensure all mmap regions are unmapped before page table teardown
+  cleanup_mmaps(p);
+
   p->xstate = status;
   p->state = ZOMBIE;
 

@@ -84,6 +84,11 @@ do_mmap(uint64 addr, int length, int prot, int flags, int fd, int offset)
   uint64 start = MMAPBASE + addr;
 
   struct file *f = 0;
+  // Per request: when not using MAP_POPULATE, fd must be -1 and offset 0
+  if((flags & MAP_POPULATE) == 0){
+    if(fd != -1 || offset != 0)
+      return 0;
+  }
   if((flags & MAP_ANONYMOUS) == 0){
     if(fd < 0 || fd >= NOFILE) return 0;
     f = p->ofile[fd];
@@ -641,6 +646,25 @@ fork_mmaps(struct proc *parent, struct proc *child)
         }
       }
       acquire(&mmap_lock);
+    }
+  }
+  release(&mmap_lock);
+}
+
+// Unmap and cleanup all mmap areas for a process (used on exit)
+void
+cleanup_mmaps(struct proc *p)
+{
+  acquire(&mmap_lock);
+  for(int i=0;i<MMAP_MAX;i++){
+    if(mmap_areas[i].p == p){
+      uint64 start = mmap_areas[i].addr;
+      int npages = mmap_areas[i].length / PGSIZE;
+      release(&mmap_lock);
+      uvmunmap(p->pagetable, start, npages, 1);
+      acquire(&mmap_lock);
+      if(mmap_areas[i].f) fileclose(mmap_areas[i].f);
+      memset(&mmap_areas[i], 0, sizeof(mmap_areas[i]));
     }
   }
   release(&mmap_lock);
