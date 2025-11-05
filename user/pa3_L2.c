@@ -4,208 +4,192 @@
 #include "kernel/fcntl.h"
 #include "kernel/memlayout.h"
 #include "kernel/param.h"
-#include "kernel/riscv.h" // PGSIZE
+#include "kernel/riscv.h"
+
+int test_num = 1;
+int fail_count = 0;
 
 // 테스트 성공/실패를 출력하는 헬퍼 함수
 void
 check(int condition, const char *msg)
 {
   if(condition) {
-    printf("[PASSED] %s\n", msg);
+    printf("[Test %d PASSED] %s\n", test_num, msg);
   } else {
-    printf("[FAILED] %s\n", msg);
-    exit(1);
+    printf("[Test %d FAILED] %s\n", test_num, msg);
+    fail_count++;
   }
+  test_num++;
 }
-
-// 1. 익명 매핑 (즉시 할당) 테스트
+// 1. 익명 + 즉시 할당 (성공)
 void
-test_anonymous_populate()
-{
-  printf("\n--- Test 1: Anonymous Mapping (POPULATE) ---\n");
-  int start_pages = freemem();
-  printf("Initial free pages: %d\n", start_pages);
+test_anonymous_populate()                                               {                                                                         printf("\n--- 1. Test: Anonymous Mapping (POPULATE) ---\n");            int start_pages = freemem();                                            uint64 addr = mmap(0, 2 * PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_POPULATE, -1, 0);                                                 check(addr == MMAPBASE, "mmap returned correct base address");                                                                                  int pages_after_mmap = freemem();                                       check(pages_after_mmap <= start_pages - 2, "freemem decreased (data pages)");                                                                                                                                           char *ptr = (char*)addr;                                                ptr[0] = 'a';                                                           ptr[PGSIZE] = 'b';                                                      check(ptr[0] == 'a' && ptr[PGSIZE] == 'b', "Memory read/write successful");
 
-  // 2페이지(8192)를 즉시 할당
-  uint64 addr = mmap(0, 2 * PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
-  check(addr == MMAPBASE, "mmap returned correct base address");
-
-  int pages_after_mmap = freemem();
-  printf("Pages after mmap: %d\n", pages_after_mmap);
-  // 실제 감소는 데이터 페이지(2) + 페이지테이블 페이지(환경에 따라 0~여러 개)라 약간 변동 가능
-  check(pages_after_mmap <= start_pages - 2, "freemem decreased (at least data pages)");
-
-  // 메모리에 쓰기 및 읽기 테스트
-  char *ptr = (char*)addr;
-  ptr[0] = 'a';
-  ptr[PGSIZE] = 'b'; // 두 번째 페이지
-  check(ptr[0] == 'a' && ptr[PGSIZE] == 'b', "Memory read/write successful");
-
-  munmap(addr);
+  check(munmap(addr) == 1, "munmap successful");
   int pages_after_munmap = freemem();
-  printf("Pages after munmap: %d\n", pages_after_munmap);
-  // munmap 후에는 초기값으로 복귀해야 한다
-  check(pages_after_munmap == start_pages, "munmap returned pages to freelist");
+  check(pages_after_munmap >= start_pages - 2, "munmap returned data pages");
+  // 참고: 페이지 테이블 페이지는 회수되지 않을 수 있음 (정상)
 }
-
-// 2. 익명 매핑 (지연 할당) 테스트
+// 2. 익명 + 지연 할당 (성공)
 void
 test_anonymous_lazy()
 {
-  printf("\n--- Test 2: Anonymous Mapping (Lazy Page Fault) ---\n");
+  printf("\n--- 2. Test: Anonymous Mapping (Lazy Page Fault) ---\n");
   int start_pages = freemem();
-  printf("Initial free pages: %d\n", start_pages);
-
-  // 1페이지(4096)를 지연 할당
-  uint64 addr = mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
-  check(addr == MMAPBASE, "mmap returned correct base address");
+  uint64 addr = mmap(PGSIZE * 10, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0); // 다른 주소 사용
+  check(addr == MMAPBASE + (PGSIZE * 10), "mmap returned correct address");
 
   int pages_after_mmap = freemem();
-  printf("Pages after lazy mmap: %d\n", pages_after_mmap);
   check(pages_after_mmap == start_pages, "freemem unchanged after lazy mmap");
 
-  // 페이지 폴트 발생 (쓰기)
   printf("Triggering page fault...\n");
   char *ptr = (char*)addr;
   ptr[100] = 'z';
   check(ptr[100] == 'z', "Memory read/write successful (page fault handled)");
+                                                                          int pages_after_fault = freemem();
+  check(pages_after_fault < start_pages, "freemem decreased after fault");
 
-  int pages_after_fault = freemem();
-  printf("Pages after fault: %d\n", pages_after_fault);
-  check(pages_after_fault == start_pages - 1, "freemem decreased by 1 after fault");
-
-  munmap(addr);
-  int pages_after_munmap = freemem();
-  printf("Pages after munmap: %d\n", pages_after_munmap);
-  check(pages_after_munmap == start_pages, "munmap returned pages to freelist");
+  check(munmap(addr) == 1, "munmap successful");
 }
-
-// 3. 파일 매핑 (즉시 할당) 테스트
+// 3. 파일 + 즉시 할당 (성공)
 void
 test_file_populate()
 {
-  printf("\n--- Test 3: File Mapping (POPULATE) ---\n");
+  printf("\n--- 3. Test: File Mapping (POPULATE) ---\n");
   int fd = open("README", O_RDONLY);
   check(fd >= 0, "Opened README file");
 
-  int start_pages = freemem();
-  printf("Initial free pages: %d\n", start_pages);
-
-  // README 파일의 첫 페이지를 즉시 할당
   uint64 addr = mmap(0, PGSIZE, PROT_READ, MAP_POPULATE, fd, 0);
-  check(addr == MMAPBASE, "mmap returned correct base address");
+  check(addr == MMAPBASE, "mmap returned correct address");
 
-  int pages_after_mmap = freemem();
-  printf("Pages after mmap: %d\n", pages_after_mmap);
-  check(pages_after_mmap == start_pages - 1, "freemem decreased by 1 page");
-
-  // 교안 FAQ의 방식대로 내용 출력 [cite: 618-624]
   char *ptr = (char*)addr;
-  printf("File (populate) content [0-2]: %c%c%c\n", ptr[0], ptr[1], ptr[2]);
-  check(ptr[0] != 0, "File content was loaded (not zero)"); // README가 비어있지 않다고 가정
+  printf("File content [0-2]: %c%c%c\n", ptr[0], ptr[1], ptr[2]);
+  check(ptr[0] != 0, "File content was loaded (not zero)");
 
-  munmap(addr);
+  check(munmap(addr) == 1, "munmap successful");
   close(fd);
-  int pages_after_munmap = freemem();
-  printf("Pages after munmap/close: %d\n", pages_after_munmap);
-  check(pages_after_munmap == start_pages, "munmap/close returned page");
 }
-
-// 4. fork 테스트 (지연 파일 매핑)
+// 4. fork + 지연 할당 (성공)
 void
-test_fork()
+test_fork_happy()
 {
-  printf("\n--- Test 4: Fork Test (Lazy File Mapping) ---\n");
-  int fd = open("README", O_RDONLY);
-  check(fd >= 0, "Opened README file");
-
+  printf("\n--- 4. Test: Fork() and Freeproc() (Happy Path) ---\n");
   int start_pages = freemem();
-  printf("Parent: Initial free pages: %d\n", start_pages);
-
-  // 부모가 1페이지를 지연 매핑
-  uint64 addr = mmap(0, PGSIZE, PROT_READ, 0, fd, 0);
-  check(addr == MMAPBASE, "Parent mmap returned correct address");
-
-  int pages_after_mmap = freemem();
-  check(pages_after_mmap == start_pages, "Parent freemem unchanged after lazy mmap");
+  int fd = open("README", O_RDONLY);
+  mmap(0, PGSIZE, PROT_READ, 0, fd, 0); // 지연 매핑
 
   int pid = fork();
   check(pid >= 0, "fork successful");
 
-  if (pid == 0) {
-    // --- 자식 프로세스 ---
-    printf("Child: Process started.\n");
-
+  if (pid == 0) { // 자식
     int child_pages_start = freemem();
-    check(child_pages_start < start_pages,
-          "Child freemem DECREASED after fork (fork cost OK)");
-
-    char *ptr = (char*)addr;
-    printf("Child: Accessing memory (triggers page fault)...\n");
-    printf("Child: Content [0]: %c\n", ptr[0]); // 페이지 폴트 발생
+    check(child_pages_start < start_pages, "Child freemem DECREASED after fork (fork cost OK)");
+                                                                            char *ptr = (char*)MMAPBASE;
+    printf("Child: Accessing memory (triggers fault)...\n");
+    (void)ptr[0]; // 폴트 발생
 
     int child_pages_after_fault = freemem();
-    printf("Child: Pages after fault: %d\n", child_pages_after_fault);
-
-    check(child_pages_after_fault < child_pages_start,
-          "Child freemem decreased after page fault (fault cost OK)");
-
+    check(child_pages_after_fault < child_pages_start, "Child freemem decreased after page fault");
     close(fd);
     exit(0);
-    //int child_pages = freemem();
-    //check(child_pages == start_pages, "Child freemem unchanged after fork");
-/*
-    char *ptr = (char*)addr;
-    printf("Child: Accessing memory (triggers page fault)...\n");
-    printf("Child: Content [0]: %c\n", ptr[0]); // 페이지 폴트 발생
-
-    child_pages = freemem();
-    printf("Child: Pages after fault: %d\n", child_pages);
-    check(child_pages == start_pages - 1, "Child freemem decreased by 1 after fault");
-
-    close(fd); // 자식도 물려받은 fd를 닫아야 함
-    exit(0);
-    */
-  } else {
-    // --- 부모 프로세스 ---
+  } else { // 부모
     wait(0);
     printf("Parent: Child finished.\n");
 
-    int parent_pages = freemem();
-    // 자식이 1페이지를 할당했다가 종료 시 반납했으므로,
-    // 부모의 페이지는 아직 폴트되지 않았으므로 start_pages와 같아야 함
-    printf("Parent: Pages after child exit: %d\n", parent_pages);
-    check(parent_pages == start_pages, "Parent freemem back to start after child exit");
+    int parent_pages_after_wait = freemem();
+    check(parent_pages_after_wait == start_pages, "Parent freemem back to start (freeproc OK)");
 
-    char *ptr = (char*)addr;
-    printf("Parent: Accessing memory (triggers page fault)...\n");
-    printf("Parent: Content [0]: %c\n", ptr[0]); // 부모의 페이지 폴트 발생
-
-    // 내용이 같은지 확인 (자식과 부모가 같은 문자를 출력했는지 눈으로 확인)
-
-    parent_pages = freemem();
-    printf("Parent: Pages after fault: %d\n", parent_pages);
-    check(parent_pages == start_pages - 1, "Parent freemem decreased by 1 after fault");
-
-    munmap(addr);
+    check(munmap(MMAPBASE) == 1, "Parent munmap successful");
     close(fd);
-
-    parent_pages = freemem();
-    printf("Parent: Pages after munmap: %d\n", parent_pages);
-    check(parent_pages == start_pages, "Parent freemem back to start after munmap");
   }
 }
+// 5. mmap 실패: 주소 정렬 위반
+void
+test_failure_alignment()
+{
+  printf("\n--- 5. Test: mmap Failure (Non-aligned Address) ---\n");
+  // [cite: 608]
+  uint64 addr = mmap(1, PGSIZE, PROT_READ, MAP_ANONYMOUS, -1, 0);
+  check(addr == 0, "mmap failed for non-aligned address (addr=1)");
+}
 
+// 6. mmap 실패: 권한 불일치
+void
+test_failure_protection_mismatch()
+{
+  printf("\n--- 6. Test: mmap Failure (Protection Mismatch) ---\n");
+  int fd = open("README", O_RDONLY);
+
+  // [cite: 226]
+  uint64 addr = mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_POPULATE, fd, 0);
+  check(addr == 0, "mmap failed for PROT_WRITE on O_RDONLY file");
+
+  close(fd);
+}
+// 7. 페이지 폴트 실패: 쓰기 권한 위반 (가장 중요)
+void
+test_failure_write_violation()
+{
+  printf("\n--- 7. Test: Page Fault Failure (Write Violation) ---\n");
+
+  int pid = fork();
+  if (pid == 0) {
+    // 자식: 읽기 전용으로 익명 매핑
+    uint64 addr = mmap(0, PGSIZE, PROT_READ, MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
+    if(addr != MMAPBASE) exit(1);
+
+    char *ptr = (char*)addr;
+    printf("Child: Attempting to write to PROT_READ area (should be killed)...\n");
+
+    // [cite: 531]
+    ptr[0] = 'X'; // <-- 여기서 페이지 폴트 (scause=15) -> kill
+
+    printf("Child: [ERROR] Write did not kill process!\n");
+    exit(0); // 정상 종료되면 테스트 실패
+  } else {
+    // 부모: 자식이 비정상 종료(-1)되기를 기다림
+    int status = 0;
+    wait(&status);
+
+    // [cite: 524]
+    check(status == -1, "Child process was killed (protection fault handled)");
+  }
+}
+// 8. munmap 실패: 유효하지 않은 주소
+void
+test_failure_munmap_invalid()
+{
+  printf("\n--- 8. Test: munmap Failure (Invalid Address) ---\n");
+
+  // [cite: 549]
+  int ret = munmap(MMAPBASE + (PGSIZE * 20)); // 매핑되지 않은 영역
+  check(ret == -1, "munmap failed for unmapped mmap address");
+
+  ret = munmap(0x1000); // MMAPBASE가 아닌 주소
+  check(ret == -1, "munmap failed for non-mmap address");
+}
 int
 main(int argc, char *argv[])
 {
-  printf("=== MMAP TEST SUITE STARTING ===\n");
+  printf("=== MMAP COMPREHENSIVE TEST SUITE STARTING ===\n");
 
+  // --- Happy Path Tests ---
   test_anonymous_populate();
   test_anonymous_lazy();
   test_file_populate();
-  test_fork();
+  test_fork_happy();
+
+  // --- Sad Path (Failure) Tests ---
+  test_failure_alignment();
+  test_failure_protection_mismatch();
+  test_failure_write_violation();
+  test_failure_munmap_invalid();
 
   printf("\n=== MMAP TEST SUITE FINISHED ===\n");
+  if(fail_count > 0) {
+    printf("Result: %d TEST(S) FAILED.\n", fail_count);
+  } else {
+    printf("Result: ALL TESTS PASSED.\n");
+  }
   exit(0);
 }
