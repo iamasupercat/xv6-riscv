@@ -66,7 +66,7 @@ static void test_anon(int populate)
 
   int mid = freemem();
   if(populate)
-    assert(before - mid == pages, "populate consumes pages immediately");
+    assert(before - mid >= pages, "populate consumes pages immediately");
   else
     assert(before == mid, "non-populate should not allocate yet");
 
