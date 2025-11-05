@@ -174,6 +174,7 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             ismapped(pagetable_t, uint64);
 uint64          vmfault(pagetable_t, uint64, int);
+void            fork_mmaps(struct proc *, struct proc *);
 
 // plic.c
 void            plicinit(void);
