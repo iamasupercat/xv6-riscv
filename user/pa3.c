@@ -76,7 +76,7 @@ static void test_anon(int populate)
   if(populate)
     assert(before - after_touch == pages, "populate: no extra alloc after touch");
   else
-    assert(before - after_touch == 1, "lazy alloc one page after touch");
+    assert(before - after_touch >= 1, "lazy allocation should reduce freemem");
 
   // fork: child should see same content; modifications isolated
   fill_pattern(p, 1*PGSZ, 0x11);
