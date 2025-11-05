@@ -159,6 +159,9 @@ do_munmap(uint64 addr)
 {
   struct proc *p = myproc();
   struct mmap_area *ma;
+  // Accept either absolute VA (MMAPBASE+offset) or offset-style (addr)
+  if(addr < MMAPBASE)
+    addr = MMAPBASE + addr;
   acquire(&mmap_lock);
   ma = find_mmap_start(p, addr);
   if(ma == 0){ release(&mmap_lock); return -1; }
