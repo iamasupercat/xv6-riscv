@@ -84,7 +84,10 @@ main(int argc, char *argv[])
   if (freemem() >= initial_free)
     fail("page fault did not allocate any page for file map");
   
-  lseek(fd, 0, 0); // seek back to start
+  // reopen instead of lseek
+  close(fd);
+  if((fd = open("README", O_RDONLY)) < 0)
+    fail("failed to reopen README");
   read(fd, buf, 1); // Read from file directly
   if (first_char != buf[0])
     fail("file content mismatch in lazy file map");
@@ -105,7 +108,10 @@ main(int argc, char *argv[])
   if (freemem() > initial_free - 1)
     fail("populate file mmap did not allocate memory correctly");
   
-  lseek(fd, 0, 0);
+  // reopen instead of lseek
+  close(fd);
+  if((fd = open("README", O_RDONLY)) < 0)
+    fail("failed to reopen README");
   read(fd, buf, 1);
   if (addr[0] != buf[0])
     fail("file content mismatch in populate file map");
@@ -127,7 +133,10 @@ main(int argc, char *argv[])
     fail("fork failed");
   
   if (pid == 0) { // Child
-    lseek(fd, 0, 0);
+    // reopen instead of lseek
+    close(fd);
+    if((fd = open("README", O_RDONLY)) < 0)
+      fail("failed to reopen README in child");
     read(fd, buf, 1);
     if (addr[0] != buf[0]) {
       printf("mmaptest: FAILED. child: file content mismatch\n");
