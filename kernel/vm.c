@@ -75,6 +75,39 @@ static int map_one_page(struct proc *p, struct mmap_area *ma, uint64 va)
   return 0;
 }
 
+// If the page-table page for va became empty after unmapping the leaf,
+// free the empty lower-level page-table pages recursively up to level-2.
+// Only frees if the page tables are completely empty (no other mappings use them).
+static void prune_pagetables(pagetable_t pagetable, uint64 va)
+{
+  // level-2
+  pte_t *pte2 = &pagetable[PX(2, va)];
+  if((*pte2 & PTE_V) == 0) return;
+  pagetable_t pt1 = (pagetable_t)PTE2PA(*pte2);
+  // level-1
+  pte_t *pte1 = &((pte_t*)pt1)[PX(1, va)];
+  if((*pte1 & PTE_V) == 0) return;
+  pagetable_t pt0 = (pagetable_t)PTE2PA(*pte1);
+  // level-0 table might now be empty
+  int used = 0;
+  for(int i=0;i<512;i++){
+    if(((pte_t*)pt0)[i]){ used = 1; break; }
+  }
+  if(!used){
+    kfree((void*)pt0);
+    *pte1 = 0;
+    // now check level-1 table emptiness
+    used = 0;
+    for(int i=0;i<512;i++){
+      if(((pte_t*)pt1)[i]){ used = 1; break; }
+    }
+    if(!used){
+      kfree((void*)pt1);
+      *pte2 = 0;
+    }
+  }
+}
+
 uint64
 do_mmap(uint64 addr, int length, int prot, int flags, int fd, int offset)
 {
@@ -136,8 +169,12 @@ do_munmap(uint64 addr)
   release(&mmap_lock);
 
   // unmap leaves and free physical pages
-  // Note: We keep page-table pages for potential reuse (more efficient)
   uvmunmap(p->pagetable, addr, ma->length/PGSIZE, 1);
+  
+  // Prune empty page-table pages if completely unused
+  // Check each page in the range to ensure we catch all empty tables
+  for(uint64 a = addr; a < addr + ma->length; a += PGSIZE)
+    prune_pagetables(p->pagetable, a);
 
   acquire(&mmap_lock);
   if(ma->f) fileclose(ma->f);
