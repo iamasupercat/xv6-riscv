@@ -168,10 +168,8 @@ do_munmap(uint64 addr)
   release(&mmap_lock);
 
   // unmap leaves and free physical pages
+  // Note: We keep page-table pages for potential reuse (more efficient)
   uvmunmap(p->pagetable, addr, ma->length/PGSIZE, 1);
-  // prune empty page-table pages created for this range
-  for(uint64 a = addr; a < addr + ma->length; a += PGSIZE)
-    prune_pagetables(p->pagetable, a);
 
   acquire(&mmap_lock);
   if(ma->f) fileclose(ma->f);
