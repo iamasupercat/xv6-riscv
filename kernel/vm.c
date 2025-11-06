@@ -163,6 +163,9 @@ do_munmap(uint64 addr)
   // Accept either absolute VA (MMAPBASE+offset) or offset-style (addr)
   if(addr < MMAPBASE)
     addr = MMAPBASE + addr;
+  // Check if addr is page-aligned
+  if((addr % PGSIZE) != 0)
+    return 0;
   acquire(&mmap_lock);
   ma = find_mmap_start(p, addr);
   if(ma == 0){ release(&mmap_lock); return -1; }
