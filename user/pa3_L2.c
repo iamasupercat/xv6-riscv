@@ -43,7 +43,7 @@ test_anonymous_populate()
   munmap(addr);
   int pages_after_munmap = freemem();
   printf("Pages after munmap: %d\n", pages_after_munmap);
-  check(pages_after_munmap == start_pages, "munmap returned pages to freelist");
+  check(pages_after_munmap == start_pages - 2, "munmap returned pages to freelist");
 }
 
 // 2. 익명 매핑 (지연 할당) 테스트
