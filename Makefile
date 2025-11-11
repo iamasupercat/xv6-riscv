@@ -150,6 +150,7 @@ UPROGS=\
 	$U/_pa3_L2\
 	$U/_pa3_L3\
 	$U/_pa3_C\
+	$U/_pa3_J\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
